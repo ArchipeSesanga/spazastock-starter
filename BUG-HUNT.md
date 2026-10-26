@@ -11,8 +11,8 @@ Each snippet has at least one bug from Week 7. Under each one, write:
 {sales.map((sale, index) => <SaleRow key={index} sale={sale} />)}
 ```
 
-- What breaks, and for whom:
-- The fix:
+- What breaks, and for whom: i believe the Key must be equal to sale.id
+- The fix: key={sale.id}
 
 ## 2
 
@@ -22,8 +22,8 @@ useEffect(() => {
 }, [])
 ```
 
-- What breaks, and for whom:
-- The fix:
+- What breaks, and for whom: the state needs to be cleared at some point 
+- The fix: return => clearinterval(id)
 
 ## 3
 
@@ -41,8 +41,9 @@ localStorage.setItem('token', body.accessToken)
 useQuery({ queryKey: ['products'], queryFn: () => getProducts(categoryId) })
 ```
 
-- What breaks, and for whom:
-- The fix:
+- What breaks, and for whom: the categoryId is ignored
+
+- The fix:  queryKey: ['products', CategoryId]
 
 ## 5
 
@@ -70,7 +71,7 @@ const save = useMutation({ mutationFn: createSale })
 <Button onClick={() => save.mutate(values)}>Save</Button>
 ```
 
-- What breaks, and for whom:
+- What breaks, and for whom: idempotency problem i believe
 - The fix:
 
 ## 8
