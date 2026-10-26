@@ -1,0 +1,165 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SpazaStock API",
+    "version": "v1",
+    "description": "The fake API for the Week 7 revision challenge. It runs inside the browser (MSW), at the same origin as the app. All money is integer cents. Every error is application/problem+json with a correlationId."
+  },
+  "paths": {
+    "/api/v1/categories": {
+      "get": {
+        "summary": "Every category on the shelves.",
+        "responses": {
+          "200": {
+            "description": "The categories, in shelf order.",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/categories/{id}/products": {
+      "get": {
+        "summary": "One page of a category's products.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "pageSize", "in": "query", "required": false, "schema": { "type": "integer", "format": "int32", "minimum": 1, "maximum": 20, "default": 6 } },
+          { "name": "pageToken", "in": "query", "required": false, "description": "Opaque. Pass back the nextPageToken from the previous page.", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page. nextPageToken is null when there are no more pages.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProductPage" } } }
+          },
+          "400": { "$ref": "#/components/responses/Problem" },
+          "404": { "$ref": "#/components/responses/Problem" },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/sales": {
+      "post": {
+        "summary": "Record a sale.",
+        "description": "Takes the product off the shelf. An optional Idempotency-Key makes a retry safe: the same key with the same body replays the first response (with Idempotent-Replayed: true); the same key with a different body is a 422.",
+        "parameters": [
+          { "name": "Idempotency-Key", "in": "header", "required": false, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SaleRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "The sale was recorded.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Sale" } } }
+          },
+          "400": { "$ref": "#/components/responses/Problem" },
+          "409": { "$ref": "#/components/responses/Problem" },
+          "422": { "$ref": "#/components/responses/Problem" },
+          "429": {
+            "description": "Too many requests. Wait the number of seconds in Retry-After.",
+            "headers": { "Retry-After": { "schema": { "type": "integer" } } },
+            "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/sales/today": {
+      "get": {
+        "summary": "Today's sales, added up on the server.",
+        "responses": {
+          "200": {
+            "description": "How many sales, and their total.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SalesToday" } } }
+          },
+          "default": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Problem": {
+        "description": "Something went wrong. See the problem details.",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/ProblemDetails" } } }
+      }
+    },
+    "schemas": {
+      "Category": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "required": ["id", "name", "priceInCents", "stock", "reorderLevel", "updatedAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "priceInCents": { "type": "integer", "format": "int64", "description": "The shelf price, in cents." },
+          "stock": { "type": "integer", "format": "int32", "description": "How many are on the shelf." },
+          "reorderLevel": { "type": "integer", "format": "int32", "description": "At or below this, it's time to reorder." },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ProductPage": {
+        "type": "object",
+        "required": ["items", "nextPageToken"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
+          "nextPageToken": { "type": ["string", "null"], "description": "null when there are no more pages." }
+        }
+      },
+      "SaleRequest": {
+        "type": "object",
+        "required": ["productId", "quantity", "unitPriceInCents"],
+        "properties": {
+          "productId": { "type": "string" },
+          "quantity": { "type": "integer", "format": "int32", "minimum": 1 },
+          "unitPriceInCents": { "type": "integer", "format": "int64", "minimum": 1 }
+        }
+      },
+      "Sale": {
+        "type": "object",
+        "required": ["id", "productId", "productName", "quantity", "unitPriceInCents", "totalInCents", "soldAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "productId": { "type": "string" },
+          "productName": { "type": "string" },
+          "quantity": { "type": "integer", "format": "int32" },
+          "unitPriceInCents": { "type": "integer", "format": "int64" },
+          "totalInCents": { "type": "integer", "format": "int64" },
+          "soldAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SalesToday": {
+        "type": "object",
+        "required": ["count", "totalInCents"],
+        "properties": {
+          "count": { "type": "integer", "format": "int32" },
+          "totalInCents": { "type": "integer", "format": "int64" }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "required": ["title", "status", "correlationId"],
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "integer", "format": "int32" },
+          "detail": { "type": "string" },
+          "correlationId": { "type": "string" },
+          "errors": {
+            "type": "object",
+            "description": "On a 400: the problem with each field, keyed by the request's field name.",
+            "additionalProperties": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}
