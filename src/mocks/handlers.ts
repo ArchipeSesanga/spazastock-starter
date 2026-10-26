@@ -76,6 +76,10 @@ function decodeToken(raw: string): PageToken | null {
 const idempotency = new Map<string, { request: string; status: number; body: Sale }>()
 
 export const handlers = [
+  // Not part of the contract: main.tsx calls it at start-up to check the
+  // fake API is answering.
+  http.get('/api/__fake-api', () => HttpResponse.json({ ok: true })),
+
   http.get('/api/v1/categories', async () => {
     await delay(LATENCY_MS)
     return HttpResponse.json(categories)
